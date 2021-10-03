@@ -6,12 +6,11 @@ from rng_test import Rng
 
 
 def sort_master(items):
-    rng = Rng(random.randint(0, 4294967295))
+    rng = Rng(random.randint(0, 4294967295), True)
     channels = len(items)
 
     for x in range(1, channels):
         rand = rng.rngN(channels-1)+1
-        print(rand)
         tmp = items[x]
         items[x] = items[rand]
         items[rand] = tmp
@@ -84,7 +83,7 @@ def test_stats(inputs):
 
 def run_count(radios, channels, packets_per_hop, phase, python_shuffle):
     # Adjust based on how much forking your system can handle.
-    with Pool(processes=1) as pool:
+    with Pool(processes=8) as pool:
         abc = pool.map(
             test_stats, [(radios, channels, packets_per_hop, phase, python_shuffle) for _ in range(1000)])
         collision_counts = []
@@ -103,9 +102,9 @@ if __name__ == '__main__':
     channels = 80
     packets_per_hop = 4
     min_radios = 2
-    max_radios = 10
+    max_radios = 50
     phase = True
-    python_shuffle = False
+    python_shuffle = True
 
     print("radios,mean,stdev,min,max")
     for x in range(min_radios, max_radios):
