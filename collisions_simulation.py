@@ -2,22 +2,44 @@ import random
 from collections import deque
 import statistics
 from multiprocessing import Pool
+from rng_test import Rng
 
 
-def generate_sequence(channels, packets_per_hop):
+def sort_master(items):
+    rng = Rng(random.randint(0, 4294967295))
+    channels = len(items)
+
+    for x in range(1, channels):
+        rand = rng.rngN(channels-1)+1
+        print(rand)
+        tmp = items[x]
+        items[x] = items[rand]
+        items[rand] = tmp
+
+
+def shuffle(items, python_shuffle):
+    if python_shuffle:
+        random.shuffle(items)
+    else:
+        sort_master(items)
+    return items
+
+
+def generate_sequence(channels, packets_per_hop, python_shuffle):
     items = list(range(channels))
-    random.shuffle(items)
+    items = shuffle(items, python_shuffle)
+
     items = [x for x in items for i in range(packets_per_hop)]
     items = deque(items)
-    # random offset of the packets per channel hop
-    items.rotate(random.randint(0, packets_per_hop))
+    # random offset of the start time of the sequence
+    items.rotate(random.randint(0, channels))
     items = list(items)
     return items
 
 
-def run_test(radios, channels, packets_per_hop, phase):
+def run_test(radios, channels, packets_per_hop, phase, python_shuffle):
     all_sequences = [generate_sequence(
-        channels, packets_per_hop) for _ in range(radios)]
+        channels, packets_per_hop, python_shuffle) for _ in range(radios)]
 
     seq_len = len(all_sequences[0])
     collisons = [[0 for y in range(seq_len)]
@@ -53,17 +75,18 @@ def test_stats(inputs):
     channels = inputs[1]
     packets_per_hop = inputs[2]
     phase = inputs[3]
+    python_shuffle = inputs[4]
 
     total_packets = channels * packets_per_hop
 
-    return [(total_packets - sum(y))/total_packets*100 for y in run_test(radios, channels, packets_per_hop, phase)]
+    return [(total_packets - sum(y))/total_packets*100 for y in run_test(radios, channels, packets_per_hop, phase, python_shuffle)]
 
 
-def run_count(radios, channels, packets_per_hop, phase):
+def run_count(radios, channels, packets_per_hop, phase, python_shuffle):
     # Adjust based on how much forking your system can handle.
-    with Pool(processes=8) as pool:
+    with Pool(processes=1) as pool:
         abc = pool.map(
-            test_stats, [(radios, channels, packets_per_hop, phase) for _ in range(1000)])
+            test_stats, [(radios, channels, packets_per_hop, phase, python_shuffle) for _ in range(1000)])
         collision_counts = []
         for x in abc:
             collision_counts.extend(x)
@@ -77,12 +100,13 @@ def run_count(radios, channels, packets_per_hop, phase):
 
 
 if __name__ == '__main__':
-    channels = 20
+    channels = 80
     packets_per_hop = 4
     min_radios = 2
-    max_radios = 50
+    max_radios = 10
     phase = True
+    python_shuffle = False
 
     print("radios,mean,stdev,min,max")
     for x in range(min_radios, max_radios):
-        run_count(x, channels, packets_per_hop, phase)
+        run_count(x, channels, packets_per_hop, phase, python_shuffle)
